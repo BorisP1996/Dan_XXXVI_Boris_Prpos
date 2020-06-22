@@ -10,76 +10,77 @@ namespace Zadatak_1
 {
     class Program
     {
-        static List<int> list = new List<int>(10000);
+        static int[] array = new int[10000];
         static List<int> oddNumberList = new List<int>();
         static string path = @"../../OddNumbers.txt";
         static object lockObject = new object();
+        static object lockObject2 = new object();
+        static int[,] matrix;
+        static Random rnd = new Random();
 
         static void Main(string[] args)
         {
 
             Thread t1 = new Thread(() => CreateMatrix());
+            Thread t2 = new Thread(() => CreateNumbers());
             t1.Start();
+            t2.Start();
+
+            Thread t3 = new Thread(() => ReadOddNumbers());
+            Thread t4 = new Thread(() => ReadFile());
+            t4.Start();
+            t3.Start();
+            //t3.Join();
+            
           
             Console.ReadLine();
         }
         static void CreateMatrix()
         {
-            int[,] matrix = new int[100, 100];
-            Thread t2 = new Thread(() => CreateNumbers());
-            t2.Start();
-            t2.Join();
-            
-            for (int i = 0; i < 100; i++)
+            lock (lockObject)
             {
-                for (int j = 0; j < 100; j++)
+                matrix = new int[100, 100];
+                Monitor.Wait(lockObject);
+                int index = 0;
+                for (int i = 0; i < 100; i++)
                 {
-                    for (int k = 0; k < list.Count; k++)
+                    for (int j = 0; j < 100; j++)
                     {
-                        matrix[i, j] = list[i];
+                        matrix[i, j] = array[index];
+                        index++;
                     }
                 }
             }
-            //for (int i = 0; i < 100; i++)
-            //{
-            //    Console.WriteLine("\n");
-            //    for (int j = 0; j < 100; j++)
-            //    {
-            //        Console.Write(matrix[i,j]);
-            //    }
-            //}
-
-            Thread t3 = new Thread(() => ReadOddNumbers(matrix));
-            Thread t4 = new Thread(() => ReadFile());
-            t3.Start();
-            t3.Join();
-            t4.Start();
         }
         static void CreateNumbers()
         {
-            Random rnd = new Random();
-
-            for (int i = 0; i < 10000; i++)
+            lock (lockObject)
             {
-                list.Add(rnd.Next(10, 100));
+                for (int i = 0; i < 10000; i++)
+                {
+                    array[i] = rnd.Next(10, 100);
+                }
+                Monitor.Pulse(lockObject);
             }
         }
 
-        static void ReadOddNumbers(int[,] matrix)
+        static void ReadOddNumbers()
         {
-            for (int i = 0; i < 100; i++)
-            {
-                for (int j = 0; j < 100; j++)
+            
+                for (int i = 0; i < 100; i++)
                 {
-                    if (matrix[i,j]%2==1)
+                    for (int j = 0; j < 100; j++)
                     {
-                        oddNumberList.Add(matrix[i, j]);
+                        if (matrix[i, j] % 2 == 1)
+                        {
+                            oddNumberList.Add(matrix[i, j]);
+                        }
                     }
                 }
-            }
-            int[] array = oddNumberList.ToArray();
+            lock (lockObject)
+            {
+                int[] array = oddNumberList.ToArray();
 
-           
                 if (File.Exists(path))
                 {
                     File.Delete(path);
@@ -89,21 +90,31 @@ namespace Zadatak_1
                 {
                     sw.WriteLine(array[i]);
                 }
-            sw.Close();
-            
+                sw.Close();
+
+                Monitor.Pulse(lockObject);
+
+                
+            }
+
         }
 
         static void ReadFile()
         {
-            
+            lock (lockObject)
+            {
+                Monitor.Wait(lockObject);
+
                 StreamReader sr = new StreamReader(path);
                 string line = "";
+
                 while ((line = sr.ReadLine()) != null)
                 {
                     Console.WriteLine(line);
                 }
-            sr.Close();
-            
+                sr.Close();
+            }
+
         }
     }
 }
